@@ -5,5 +5,5 @@ import java.math.BigDecimal;
 /**
  * @author thomas.goodwin
  */
-public record Score(String givenBy, String givenTo, boolean displayableScore, BigDecimal score) {
+public record Score<T>(String givenBy, String givenTo, boolean displayableScore, T score) {
 }

@@ -5,5 +5,5 @@ import java.util.List;
 /**
  * @author thomas.goodwin
  */
-public record Result(Person person, List<Score> scores, CallbackResult result) {
+public record Result<T,R>(Person person, List<Score<T>> scores, R result) {
 }

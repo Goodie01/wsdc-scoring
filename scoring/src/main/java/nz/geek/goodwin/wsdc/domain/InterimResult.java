@@ -6,5 +6,5 @@ import java.util.List;
 /**
  * @author thomas.goodwin
  */
-public record InterimResult(Person dancer, List<Score> scores, BigDecimal headJudgeScore, BigDecimal totalScore) {
+public record InterimResult<T>(Person dancer, List<Score<T>> scores, BigDecimal headJudgeScore, BigDecimal totalScore) {
 }
