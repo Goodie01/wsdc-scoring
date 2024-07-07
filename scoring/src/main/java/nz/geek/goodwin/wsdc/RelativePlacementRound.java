@@ -113,41 +113,18 @@ public class RelativePlacementRound {
 
 
         while (results.size() != dancers.size()) {
-            BigInteger currentCurrentScore = currentScore;
-            List<RelativePlacingInterimResult> collect = interimResults.stream()
-                    .map(interimResult -> {
-                        Person person = interimResult.dancer();
-                        long scoreSum = interimResult.scores().stream()
-                                .filter(bigIntegerScore -> bigIntegerScore.score().compareTo(currentCurrentScore) <= 0)
-                                .mapToLong(value -> value.score().longValue())
-                                .sum();
-                        long scoreCount = interimResult.scores().stream()
-                                .filter(bigIntegerScore -> bigIntegerScore.score().compareTo(currentCurrentScore) <= 0)
-                                .count();
-                        return new RelativePlacingInterimResult(person, scoreCount, scoreSum, interimResult.scores());
-                    })
-                    .filter(scores -> scores.countScore() >= judgesMajority)
-                    .toList();
+            List<RelativePlacingInterimResult> collect = getRelativePlacingInterimResults(currentScore, interimResults, judgesMajority);
 
             //if this has 1 entry, then we have a majority. Yay.
             if (!collect.isEmpty()) {
-                Long topScoreThisRound = collect.stream()
-                        .map(RelativePlacingInterimResult::countScore)
-                        .max(Comparator.comparing(Function.identity()))
-                        .orElse((long) judges.size());
-
-                List<RelativePlacingInterimResult> topScorersThisRound = collect.stream()
-                        .filter(personLongEntry -> personLongEntry.countScore().equals(topScoreThisRound))
-                        .collect(Collectors.toCollection(ArrayList::new));
+                List<RelativePlacingInterimResult> topScorersThisRound = findTopLevelPlacements(collect);
 
                 RelativePlacingInterimResult placing;
                 if (topScorersThisRound.size() == 1) {
                     placing = topScorersThisRound.getFirst();
                     currentScore = currentScore.add(BigInteger.ONE);
                 } else {
-                    //TODO What happens if we have a tie break STILL
-                    topScorersThisRound.sort(Comparator.comparing(RelativePlacingInterimResult::sumScore));
-                    placing = topScorersThisRound.getFirst();
+                    placing = managePossibleTieBreak(topScorersThisRound, interimResults);
                 }
 
                 interimResults.removeIf(interimResult -> interimResult.dancer().id().equals(placing.person().id()));
@@ -173,6 +150,55 @@ public class RelativePlacementRound {
 //            list.add(objectResult);
 //        }
 //        return list;
+    }
+
+    private RelativePlacingInterimResult managePossibleTieBreak(List<RelativePlacingInterimResult> topScorersThisRound, List<InterimResult<BigInteger>> interimResults) {
+        //At this point we know there are at least 2 inside @topScorersThisRound
+
+        //TODO What happens if we have a tie break STILL
+        Set<String> tieBreakIds = topScorersThisRound.stream()
+                .map(RelativePlacingInterimResult::person)
+                .map(Person::id)
+                .collect(Collectors.toSet());
+
+        List<InterimResult<BigInteger>> list = interimResults.stream()
+                .filter(interimResult -> tieBreakIds.contains(interimResult.dancer().id()))
+                .toList();
+
+        List<RelativePlacingInterimResult> relativePlacingInterimResults = getRelativePlacingInterimResults(BigInteger.ONE, list, 1);
+
+        topScorersThisRound.sort(Comparator.comparing(RelativePlacingInterimResult::sumScore));
+        return topScorersThisRound.getFirst();
+    }
+
+    private List<RelativePlacingInterimResult> findTopLevelPlacements(List<RelativePlacingInterimResult> collect) {
+        Long topScoreThisRound = collect.stream()
+                .map(RelativePlacingInterimResult::countScore)
+                .max(Comparator.comparing(Function.identity()))
+                .orElse((long) judges.size());
+
+        List<RelativePlacingInterimResult> topScorersThisRound = collect.stream()
+                .filter(personLongEntry -> personLongEntry.countScore().equals(topScoreThisRound))
+                .collect(Collectors.toCollection(ArrayList::new));
+        return topScorersThisRound;
+    }
+
+    private static List<RelativePlacingInterimResult> getRelativePlacingInterimResults(BigInteger currentScore, List<InterimResult<BigInteger>> interimResults, int judgesMajority) {
+        List<RelativePlacingInterimResult> collect = interimResults.stream()
+                .map(interimResult -> {
+                    Person person = interimResult.dancer();
+                    long scoreSum = interimResult.scores().stream()
+                            .filter(bigIntegerScore -> bigIntegerScore.score().compareTo(currentScore) <= 0)
+                            .mapToLong(value -> value.score().longValue())
+                            .sum();
+                    long scoreCount = interimResult.scores().stream()
+                            .filter(bigIntegerScore -> bigIntegerScore.score().compareTo(currentScore) <= 0)
+                            .count();
+                    return new RelativePlacingInterimResult(person, scoreCount, scoreSum, interimResult.scores());
+                })
+                .filter(scores -> scores.countScore() >= judgesMajority)
+                .toList();
+        return collect;
     }
 
     private int getJudgeMajority() {
